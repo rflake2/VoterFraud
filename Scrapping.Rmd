@@ -1,0 +1,180 @@
+---
+title: "Scrapping"
+author: "Ryan Flake"
+date: "11/10/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if (!("rvest" %in% installed.packages())) {
+ install.packages("rvest")
+}
+if (!("dplyr" %in% installed.packages())) {
+ install.packages("dplyr")
+}
+library(rvest)
+library(dplyr)
+library(XML)
+```
+
+
+## Scrapping Practice
+
+```{r}
+hot100page <- "https://www.billboard.com/charts/hot-100"
+hot100 <- read_html(hot100page)
+
+hot100
+str(hot100)
+```
+
+```{r}
+body_nodes <- hot100 %>%
+  html_node("body") %>%
+  html_children()
+body_nodes
+```
+
+```{r}
+body_nodes %>%
+  html_children()
+```
+
+```{r}
+rank <- hot100 %>%
+  rvest::html_nodes('body') %>%
+  xml2::xml_find_all("//span[contains(@class, 'chart-element__rank__number')]") %>%
+  rvest::html_text()
+
+artist <- hot100 %>%
+  rvest::html_nodes('body') %>%
+  xml2::xml_find_all("//span[contains(@class, 'chart-element__information__artist')]") %>%
+  rvest::html_text()
+
+title <- hot100 %>%
+  rvest::html_nodes('body') %>%
+  xml2::xml_find_all("//span[contains(@class, 'chart-element__information__song')]") %>%
+  rvest::html_text()
+
+chart_df <- data.frame(rank, artist, title)
+knitr::kable(
+  chart_df %>% head(10)
+)
+```   
+
+## Real Scrapping 
+
+```{r}
+heritage <- "https://www.heritage.org/voterfraud-print/search"
+
+heritage_fraud <- read_html(heritage)
+
+heritage_fraud
+str(heritage_fraud)
+```
+
+```{r}
+State <- heritage_fraud %>%
+  rvest::html_nodes('body') %>%
+  xml2::xml_find_all(
+    "//span[
+      contains(
+    @class, 'views-field views-field-field-fraud-state-administrative-area'
+      )
+    ]"
+  ) %>%
+  rvest::html_text()
+
+Year <- heritage_fraud %>%
+  rvest::html_nodes('body') %>%
+  xml2::xml_find_all(
+    "//span[
+      contains(
+        @class, 'views-field views-field-field-year-of-disposition'
+      )
+    ]"
+  ) %>%
+  rvest::html_text()
+
+Name <- heritage_fraud %>%
+  rvest::html_nodes('body') %>%
+  xml2::xml_find_all(
+    "//span[
+      contains(
+        @class, 'views-field views-field-name'
+      )
+    ]"
+  ) %>%
+  rvest::html_text()
+
+
+Type_of_Case <- heritage_fraud %>%
+  rvest::html_nodes('body') %>%
+  xml2::xml_find_all(
+    "//span[
+      contains(
+        @class, 'views-field views-field-field-case-type'
+      )
+    ]"
+  ) %>%
+  rvest::html_text()
+
+Type_of_Fraud <- heritage_fraud %>%
+  rvest::html_nodes('body') %>%
+  xml2::xml_find_all("//span[contains(@class, 'views-field views-field-field-fraud-type')]") %>%
+  rvest::html_text()
+
+heritage_chart_df <- data.frame(State, Year, Name, Type_of_Case, Type_of_Fraud)
+
+knitr::kable(
+  heritage_chart_df %>% head(10)
+)
+```
+
+## Data Tidying
+
+```{r}
+library(tidyverse)
+
+heritage_chart_df_2 <-heritage_chart_df %>%
+  slice(2:959)
+```
+```{r}
+heritage_chart_df_3 <- heritage_chart_df_2 %>%
+  separate(
+    col = State,
+    into = combine("Trash", "State"),
+    sep = 5,
+    convert = TRUE
+  ) %>%
+  separate(
+    col = Year,
+    into = combine("Trash2", "Year"),
+    sep = 4,
+    convert = TRUE
+  ) %>%
+  separate(
+    col = Name,
+    into = combine("Trash3", "Name"),
+    sep = 4,
+    convert = TRUE
+  ) %>%
+  separate(
+    col = Type_of_Case,
+    into = combine("Tash4", "Type_of_Case"),
+    sep = 9,
+    convert = TRUE
+  ) %>%
+  separate(
+    col = Type_of_Fraud,
+    into = combine("Trash5", "Type_of_Fraud"),
+    sep = 10,
+    convert = TRUE
+  )
+```
+```{r}
+Voter_Fraud_Data_Clean <- heritage_chart_df_3 %>%
+  select(State, Year, Name, Type_of_Case, Type_of_Fraud)
+write_csv(Voter_Fraud_Data_Clean, "Voter_Fraud_Data.csv")
+```
